@@ -1,0 +1,343 @@
+/*----------------------------------------------------------------------------*/
+/* Copyright (c) FIRST 2008. All Rights Reserved.                             */
+/* Open Source Software - may be modified and shared by FRC teams. The code   */
+/* must be accompanied by the FIRST BSD license file in the root directory of */
+/* the project.                                                               */
+/*----------------------------------------------------------------------------*/
+
+
+import edu.wpi.first.wpilibj.SimpleRobot;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.DriverStationLCD;
+import edu.wpi.first.wpilibj.DigitalInput;
+import edu.wpi.first.wpilibj.camera.AxisCamera;
+import edu.wpi.first.wpilibj.Servo;
+import edu.wpi.first.wpilibj.Relay;
+import edu.wpi.first.wpilibj.Timer;
+
+/**
+ * The VM is configured to automatically run this class, and to call the
+ * functions corresponding to each mode, as described in the SimpleRobot
+ * documentation. If you change the name of this class or the package after
+ * creating this project, you must also update the manifest file in the resource
+ * directory.
+ */
+public class Main extends SimpleRobot {
+    Globals globals = new Globals();
+
+    // create the digital input objects to read from the sensors
+    DigitalInput left = new DigitalInput(3);;
+    DigitalInput right = new DigitalInput(1);;
+    DigitalInput middle = new DigitalInput(2);;
+    
+    DigitalInput miniBotArmFrontSwitch = new DigitalInput(9);
+    DigitalInput miniBotArmBackSwitch = new DigitalInput(8);
+    DigitalInput miniBotArmSwitch = new DigitalInput(10);
+    DigitalInput tubeArmMaxSwitchLift = new DigitalInput(14);
+    DigitalInput tubeArmMinSwitchLift = new DigitalInput(13);
+    DigitalInput tubeArmFrontSwitchPivot = new DigitalInput(11);
+    DigitalInput tubeArmBackSwitchPivot = new DigitalInput(12);
+
+    DriverStation ds;
+    AxisCamera cam;
+    Servo tilt = new Servo(6);
+    Servo pan = new Servo(5);
+    
+    Relay miniBotArm = new Relay(4,7);
+
+    //DriverStationEnhancedIO eIO;
+
+    //these angles are in governor of degrees
+    private int governor;
+    private int panHold;
+    private int tiltHold;
+    private int panHoldStart;
+    private int tiltHoldStart;
+    private int panMax, panMin, tiltMax, tiltMin;
+    private int armDirection;
+    private int armDirectionTubeLift;
+    private int armDirectionTubePivot;
+
+    private static final int armStop=0;
+    private static final int armStopTubeLift=0;
+    private static final int armStopTubePivot=0;
+    private static final int armForward=1;
+    private static final int armForwardTubeLift=1;
+    private static final int armForwardTubePivot=1;
+    private static final int armReverse=2;
+    private static final int armReverseTubeLift=2;
+    private static final int armReverseTubePivot=2;
+
+
+    public void robotInit() {
+        cam = AxisCamera.getInstance();
+        cam.writeResolution(AxisCamera.ResolutionT.k160x120);
+        //cam.writeColorLevel(1);
+        cam.writeBrightness(0);
+        
+        //used for pan tilt camera
+        governor = 7;
+        panHold = panHoldStart = 73*governor;
+        tiltHold = tiltHoldStart = 41*governor;
+        panMin = 0;
+        panMax = 175*governor;
+        tiltMin = 0;
+        tiltMax = 132*governor;
+        tilt.setAngle(tiltHoldStart/governor);
+        pan.setAngle(panHoldStart/governor);
+
+        armDirection= armStop;
+        armDirectionTubeLift = armStopTubeLift;
+        armDirectionTubePivot = armStopTubePivot;
+
+
+        DriverStationLCD.getInstance().println(DriverStationLCD.Line.kUser2, 1, "                                                     ");
+        DriverStationLCD.getInstance().println(DriverStationLCD.Line.kUser3, 1, "                                                     ");
+        DriverStationLCD.getInstance().println(DriverStationLCD.Line.kUser4, 1, "                                                     ");
+        DriverStationLCD.getInstance().println(DriverStationLCD.Line.kUser5, 1, "                                                     ");
+        DriverStationLCD.getInstance().println(DriverStationLCD.Line.kUser6, 1, "                                                     ");
+
+        DriverStationLCD.getInstance().updateLCD();
+
+
+    }
+
+    public void miniBotDeployArm()
+    {
+      //stop if switch is tripped
+      double motor_speed = 1;
+      /*if(globals.operator.joystick_left.getRawButton(11) && (miniBotArmBackSwitch.get() || miniBotArmSwitch.get() ))
+      {
+            //armDirection=armForward;
+            globals.miniDrive.miniArmJag.set(motor_speed);
+            DriverStationLCD.getInstance().println(DriverStationLCD.Line.kUser2, 1, "Button 10");
+            DriverStationLCD.getInstance().println(DriverStationLCD.Line.kUser2, 1, "miniBotArmBackSwitch:"+miniBotArmBackSwitch.get());
+      }
+
+      if(globals.operator.joystick_left.getRawButton(10) && miniBotArmFrontSwitch.get() )
+      {
+            //armDirection=armReverse;
+            globals.miniDrive.miniArmJag.set(-motor_speed);
+            DriverStationLCD.getInstance().println(DriverStationLCD.Line.kUser3, 1, "Button 11");
+            DriverStationLCD.getInstance().println(DriverStationLCD.Line.kUser2, 1, "miniBotArmFrontSwitch:"+miniBotArmFrontSwitch.get());
+      }
+      if(globals.operator.joystick_left.getRawButton(9)){
+          //armDirection=armStop;
+          globals.miniDrive.miniArmJag.set(0.0);
+          DriverStationLCD.getInstance().println(DriverStationLCD.Line.kUser4, 1, "Button 9");
+       } */
+
+     if(!miniBotArmFrontSwitch.get()){
+        if(armDirection==armForward){
+            armDirection=armStop;
+            DriverStationLCD.getInstance().println(DriverStationLCD.Line.kUser2, 1, "miniBotArmFrontSwitch"+miniBotArmFrontSwitch.get());
+            globals.miniDrive.miniArmJag.set(0.0);
+        }
+      }else if(globals.operator.joystick_left.getRawButton(10)){
+            armDirection=armForward;
+            globals.miniDrive.miniArmJag.set(motor_speed);
+            DriverStationLCD.getInstance().println(DriverStationLCD.Line.kUser2, 1, "Button 10");
+      }
+      if(!miniBotArmBackSwitch.get() || !miniBotArmSwitch.get()){
+          if(armDirection==armReverse){
+            armDirection=armStop;
+            DriverStationLCD.getInstance().println(DriverStationLCD.Line.kUser3, 1, "miniBotArmBackSwitch"+miniBotArmBackSwitch.get());
+            globals.miniDrive.miniArmJag.set(0.0);
+        }
+      }else if(globals.operator.joystick_left.getRawButton(11)){
+            armDirection=armReverse;
+            globals.miniDrive.miniArmJag.set(-motor_speed);
+            DriverStationLCD.getInstance().println(DriverStationLCD.Line.kUser3, 1, "                                         Button 11");
+      }        
+      if(globals.operator.joystick_left.getRawButton(9)){
+          armDirection=armStop;
+          globals.miniDrive.miniArmJag.set(0.0);
+          DriverStationLCD.getInstance().println(DriverStationLCD.Line.kUser4, 1, "Button 9");
+       }
+
+    } //end of minibot arm deploy
+    
+    public void tubeArmLift()
+    {
+      if(!tubeArmMaxSwitchLift.get()){
+        if(armDirectionTubeLift==armForwardTubeLift){
+            armDirectionTubeLift=armStopTubeLift;
+            DriverStationLCD.getInstance().println(DriverStationLCD.Line.kUser5, 1, "tubeArmMaxSwitchLift"+tubeArmMaxSwitchLift.get());
+            globals.tubeDrive.tubeArmDrive.tankDrive(0.0, 0.0);
+        }
+      }else if(globals.operator.joystick_right.getRawButton(10)){
+              armDirectionTubeLift=armForwardTubeLift;
+              globals.tubeDrive.tubeArmDrive.tankDrive(1.0, 1.0);
+          DriverStationLCD.getInstance().println(DriverStationLCD.Line.kUser6, 1, "                                     Button 11R");
+      }
+      if(!tubeArmMinSwitchLift.get()){
+          if(armDirectionTubeLift==armReverseTubeLift){
+            armDirectionTubeLift=armStopTubeLift;
+            DriverStationLCD.getInstance().println(DriverStationLCD.Line.kUser3, 1, "tubeArmMinSwitchLift"+tubeArmMinSwitchLift.get());
+            globals.tubeDrive.tubeArmDrive.tankDrive(0.0, 0.0);
+        }
+      }else if(globals.operator.joystick_right.getRawButton(11)){
+             armDirectionTubeLift=armReverseTubeLift;
+             globals.tubeDrive.tubeArmDrive.tankDrive(-1.0, -1.0);
+             DriverStationLCD.getInstance().println(DriverStationLCD.Line.kUser4, 1, "                                     Button 10R");
+      }
+      if(globals.operator.joystick_right.getRawButton(9)){
+          armDirectionTubeLift=armStopTubeLift;
+          globals.tubeDrive.tubeArmDrive.tankDrive(0.0, 0.0);
+          DriverStationLCD.getInstance().println(DriverStationLCD.Line.kUser2, 1, "                                       Button 9R");
+       }
+    } //end of arm deploy
+    
+    public void tubeArmPivot() {        
+      if(!tubeArmFrontSwitchPivot.get()){
+        if(armDirectionTubePivot==armForwardTubePivot){
+            armDirectionTubePivot=armStopTubePivot;
+            DriverStationLCD.getInstance().println(DriverStationLCD.Line.kUser4, 1, "tubeArmFrontSwitchPivot"+tubeArmFrontSwitchPivot.get());
+            globals.tubeDrive.tubeArmPivot.set(0.0);
+        }
+      }else if(globals.operator.joystick_right.getRawButton(6)){
+              armDirectionTubePivot=armForwardTubePivot;
+              globals.tubeDrive.tubeArmPivot.set(0.70);
+              DriverStationLCD.getInstance().println(DriverStationLCD.Line.kUser3, 1, "                                    Button 6R");
+      }
+      if(!tubeArmBackSwitchPivot.get()){
+          if(armDirectionTubePivot==armReverseTubePivot){
+            armDirectionTubePivot=armStopTubePivot;
+            DriverStationLCD.getInstance().println(DriverStationLCD.Line.kUser4, 1, "tubeArmBackSwitch"+tubeArmBackSwitchPivot.get());
+            globals.tubeDrive.tubeArmPivot.set(0.0);
+        }
+      }else if(globals.operator.joystick_right.getRawButton(7)){
+             armDirectionTubePivot=armReverseTubePivot;
+             globals.tubeDrive.tubeArmPivot.set(-0.2);
+             DriverStationLCD.getInstance().println(DriverStationLCD.Line.kUser3, 1, "                                    Button 7R");
+      }  
+      if(globals.operator.joystick_right.getRawButton(8)){
+          armDirectionTubePivot=armStopTubePivot;
+          globals.tubeDrive.tubeArmPivot.set(0.0);
+          DriverStationLCD.getInstance().println(DriverStationLCD.Line.kUser4, 1, "                                      Button 8R");
+       }
+    }
+
+
+    public void servoButtonControl() {
+
+        //DriverStationLCD.getInstance().println(DriverStationLCD.Line.kUser2, 1, "tiltHold: "+tiltHold+
+        //        " panHold: "+panHold);
+        if (globals.operator.joystick_right.getRawButton(3)) {
+                DriverStationLCD.getInstance().println(DriverStationLCD.Line.kUser3, 1, "3: true " + tiltHold);
+                tiltHold++;
+                if (tiltHold >= tiltMax) {
+                    tiltHold = tiltMax;
+                }
+                tilt.setAngle(tiltHold/governor);
+            }
+            else if (globals.operator.joystick_right.getRawButton(2)) {
+                DriverStationLCD.getInstance().println(DriverStationLCD.Line.kUser4, 1, "2: true " + tiltHold);
+                tiltHold--;
+                if (tiltHold <= tiltMin) {
+                    tiltHold = tiltMin;
+                }
+                tilt.setAngle(tiltHold/governor);
+            }
+            else if (globals.operator.joystick_right.getRawButton(4)) {
+                DriverStationLCD.getInstance().println(DriverStationLCD.Line.kUser5, 1, "4: true " + panHold);
+                panHold--;
+                if (panHold <= panMin) {
+                    panHold = panMin;
+                }
+                pan.setAngle(panHold/governor);
+            }
+            else if (globals.operator.joystick_right.getRawButton(5)) {
+                DriverStationLCD.getInstance().println(DriverStationLCD.Line.kUser6, 1, "5: true " + panHold);
+                panHold++;
+                if (panHold >= panMax) {
+                    panHold = panMax;
+                }
+                pan.setAngle(panHold/governor);
+            }
+    } 
+    
+    /**
+     * This function is called once each time the robot enters autonomous mode.
+     */
+    public void autonomous() {
+        robotInit();
+        DriverStationLCD.getInstance().println(DriverStationLCD.Line.kUser2, 1, "AUTONOMA!");
+        DriverStationLCD.getInstance().updateLCD();
+
+        //true if not on black
+        while(!left.get() && !middle.get() && !right.get() && isEnabled())
+        {
+            //not at end condition
+            DriverStationLCD.getInstance().println(DriverStationLCD.Line.kUser2, 1, "left on black:"+left.get());
+            DriverStationLCD.getInstance().println(DriverStationLCD.Line.kUser3, 1, "middle on black:"+middle.get());
+            DriverStationLCD.getInstance().println(DriverStationLCD.Line.kUser4, 1, "right on black:"+right.get());
+            DriverStationLCD.getInstance().updateLCD();
+            while (left.get() && !middle.get() && right.get()) {
+                // go straight
+                globals.drive.train.tankDrive(0.60, 0.60);
+                Timer.delay(0.05);
+            }
+            //curve operation
+            if (!left.get() && !right.get()) {
+                //turn left at fork
+                while (!left.get() && middle.get() && !right.get()) {
+                    globals.drive.train.tankDrive(0.0, 0.60);
+                    Timer.delay(0.05);
+                }
+                if (!middle.get()) {
+                    //straightened at fork, go straight
+                    while (left.get() && !middle.get() && right.get()) {
+                        globals.drive.train.tankDrive(0.60, 0.60);
+                        Timer.delay(0.05);
+                    }
+                }
+                if (!right.get()) {
+                    //at right, turn left to straighten up
+                    while (left.get() && middle.get() && !right.get()) {
+                        globals.drive.train.tankDrive(0.60, 0.0);
+                        Timer.delay(0.05);
+                    }
+                }
+            }
+        }
+        //add tube arm code
+        while (!tubeArmMaxSwitchLift.get()) {
+            globals.tubeDrive.tubeArmDrive.tankDrive(0.60, 0.60);
+            Timer.delay(0.05);    
+        }
+    }
+
+    /**
+     * This function is called once each time the robot enters operator control.
+     */
+    public void operatorControl() {
+        robotInit();
+        long operatorstarttime = System.currentTimeMillis();
+
+        //Minibot minibot = new Minibot(globals.operator.joystick_right,
+        //        operatorstarttime);
+        //minibot.start();
+
+        //Manipulator manipulator = new Manipulator(globals.operator.joystick_right);
+        //manipulator.start();
+
+        
+
+        while (isOperatorControl() && isEnabled()) {
+            DriverStationLCD.getInstance().println(DriverStationLCD.Line.kUser2, 1, "TELEOP ");
+            DriverStationLCD.getInstance().updateLCD();
+            //globals.drive.train.arcadeDrive(globals.operator.joystick_left);
+            globals.drive.train.tankDrive(globals.operator.joystick_left, globals.operator.joystick_right);
+            servoButtonControl();
+            miniBotDeployArm();
+            tubeArmLift();
+            tubeArmPivot();
+            //globals.dIO.Digitals();
+
+        } //main while loop finihed
+        //minibot.shutdown();
+        //manipulator.shutdown();
+    } // teleop finished
+} //end of Main class
+
